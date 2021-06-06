@@ -18,10 +18,10 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="orbitaldump",
-    version="1.0.0",
+    version="1.0.1",
     author="K4YT3X",
     author_email="k4yt3x@k4yt3x.com",
-    description="A simple multi-threaded dstributed SSH brute-forcing tool written in Python",
+    description="A simple multi-threaded distributed SSH brute-forcing tool written in Python",
     long_description=LONG_DESCRIPTION,
     long_description_content_type="text/markdown",
     url="https://github.com/k4yt3x/orbitaldump",
