@@ -103,7 +103,7 @@ class SshBruteForcer(threading.Thread):
             # login successful
             else:
                 logger.success(
-                    f"(queue size: {self.jobs.qsize()}) Valid credentials found: {username}@{hostname}:{port}:{password}"
+                    f"(queue size: {self.jobs.qsize()}) Valid credential found: {username}@{hostname}:{port}:{password}"
                 )
                 self.valid_credentials.append(
                     (hostname, username, password, port, timeout)
