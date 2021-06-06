@@ -1,7 +1,5 @@
 # OrbitalDump
 
-**Warning: This script is still under development. It may not be stable, and it has not been uploaded to PyPI yet.**
-
 A simple multi-threaded dstributed SSH brute-forcing tool written in Python.
 
 ![image](https://user-images.githubusercontent.com/21986859/120943808-33072b00-c6ff-11eb-8386-b64a0ba2a12c.png)
