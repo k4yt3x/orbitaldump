@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Name: SSH Buster
+Name: OrbitalDump
 Author: K4YT3X
 Date Created: June 6, 2021
 Last Modified: June 6, 2021
+
+A simple multi-threaded distributed SSH brute-forcing tool written in Python.
 """
 
 # built-in imports
