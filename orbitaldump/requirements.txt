@@ -1,3 +1,4 @@
 PySocks
+loguru
 paramiko
 requests

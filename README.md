@@ -4,7 +4,7 @@
 
 A simple multi-threaded dstributed SSH brute-forcing tool written in Python.
 
-![image](https://user-images.githubusercontent.com/21986859/120936059-de9a8600-c6d3-11eb-9d85-58732f382600.png)
+![image](https://user-images.githubusercontent.com/21986859/120943808-33072b00-c6ff-11eb-8386-b64a0ba2a12c.png)
 
 ## How it Works
 

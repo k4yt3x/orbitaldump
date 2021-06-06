@@ -27,7 +27,7 @@ setuptools.setup(
     url="https://github.com/k4yt3x/orbitaldump",
     packages=setuptools.find_packages(),
     license="GNU General Public License v3.0",
-    install_requires=["PySocks", "paramiko", "requests"],
+    install_requires=["PySocks", "loguru", "paramiko", "requests"],
     classifiers=[
         "Topic :: Security",
         "Environment :: Console",

