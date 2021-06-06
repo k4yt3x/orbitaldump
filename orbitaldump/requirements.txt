@@ -1,0 +1,3 @@
+PySocks
+paramiko
+requests
