@@ -1,0 +1,31 @@
+[project]
+name = "orbitaldump"
+version = "1.0.1"
+description = "A simple multi-threaded distributed SSH brute-forcing tool written in Python"
+authors = [{ name = "K4YT3X", email = "i@k4yt3x.com" }]
+classifiers = [
+  "Topic :: Security",
+  "Environment :: Console",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent",
+]
+dependencies = [
+  "PySocks>=1.7.1",
+  "loguru>=0.6.0",
+  "paramiko>=2.10.3",
+  "requests>=2.27.1",
+]
+requires-python = ">=3.7"
+license = { text = "GPL-3.0-or-later" }
+dynamic = ["version"]
+
+[project.urls]
+homepage = "https://github.com/k4yt3x/orbitaldump"
+
+[tool.pdm]
+version = { from = "orbitaldump/__init__.py" }
+
+[build-system]
+requires = ["pdm-pep517>=0.12.0"]
+build-backend = "pdm.pep517.api"

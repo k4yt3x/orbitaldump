@@ -1,3 +1,10 @@
+# PDM
+.pdm.toml
+__pypackages__/
+
+# Vim/Neovim session file
+Session.vim
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
