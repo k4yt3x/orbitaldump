@@ -19,7 +19,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 Name: OrbitalDump
 Author: K4YT3X
 Date Created: June 6, 2021
-Last Modified: April 17, 2022
+Last Modified: April 18, 2022
 
 A simple multi-threaded distributed SSH brute-forcing tool written in Python.
 """
@@ -48,28 +48,40 @@ LOGURU_FORMAT = (
 
 
 class SshBruteForcer(threading.Thread):
+    """
+    SSH brute forcer thread
+
+    :param jobs queue.Queue: a queue object containing scanning jobs
+    :param valid_credentials list: a list to contain valid credentials
+    :param proxies collections.deque: a deque of proxies to use
+    :param break_on_success bool: stop execution upon finding valid credentials
+    """
+
     def __init__(
         self,
         jobs: queue.Queue,
         valid_credentials: list,
         proxies: collections.deque = None,
+        break_on_success: bool = False,
     ):
-        """
-        SSH brute forcer initialization function
-
-        :param jobs queue.Queue: a queue object containing scanning jobs
-        :param valid_credentials list: a list to contain valid credentials
-        :param proxies collections.deque: a deque of proxies to use
-        """
         threading.Thread.__init__(self)
         self.jobs = jobs
         self.valid_credentials = valid_credentials
         self.proxies = proxies
+        self.break_on_success = break_on_success
+
         self.running = False
 
     def run(self):
         self.running = True
-        while self.running:
+        while self.running is True:
+
+            # if break on success is set and a valid credential
+            # has already been found, stop the thread
+            if self.break_on_success is True and len(self.valid_credentials) > 0:
+                self.running = False
+                break
+
             try:
                 hostname, username, password, port, timeout = self.jobs.get(False)
             except queue.Empty:
@@ -168,24 +180,26 @@ def parse_arguments() -> argparse.Namespace:
         add_help=False,
     )
     parser.add_argument("--help", action="help", help="show this help message and exit")
-
     parser.add_argument(
         "-t", "--threads", help="number of threads to use", default=5, type=int
     )
-
     parser.add_argument(
         "-u", "--username", type=pathlib.Path, help="username file path"
     )
-
     parser.add_argument(
         "-p", "--password", type=pathlib.Path, help="password file path"
     )
-
     parser.add_argument("-h", "--hostname", help="target hostname", required=True)
     parser.add_argument("--port", type=int, help="target port", default=22)
     parser.add_argument("--timeout", type=int, help="SSH timeout", default=6)
     parser.add_argument(
         "--proxies", help="use SOCKS proxies from ProxyScrape", action="store_true"
+    )
+    parser.add_argument(
+        "-b",
+        "--break",
+        help="break upon finding a valid credential",
+        action="store_true",
     )
 
     return parser.parse_args()
