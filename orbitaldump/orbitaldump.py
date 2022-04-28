@@ -276,8 +276,8 @@ def main() -> int:
         # add username and password combinations to jobs queue
         logger.info("Loading usernames and passwords into queue")
         with args.username.open("r") as username_file:
-            with args.password.open("r") as password_file:
-                for username in username_file:
+            for username in username_file:
+                with args.password.open("r") as password_file:
                     for password in password_file:
                         jobs.put(
                             (
