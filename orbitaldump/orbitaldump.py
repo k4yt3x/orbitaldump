@@ -19,7 +19,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 Name: OrbitalDump
 Author: K4YT3X
 Date Created: June 6, 2021
-Last Modified: April 18, 2022
+Last Modified: April 30, 2022
 
 A simple multi-threaded distributed SSH brute-forcing tool written in Python.
 """
@@ -184,10 +184,10 @@ def parse_arguments() -> argparse.Namespace:
         "-t", "--threads", help="number of threads to use", default=5, type=int
     )
     parser.add_argument(
-        "-u", "--username", type=pathlib.Path, help="username file path"
+        "-u", "--username", type=pathlib.Path, help="username file path", required=True
     )
     parser.add_argument(
-        "-p", "--password", type=pathlib.Path, help="password file path"
+        "-p", "--password", type=pathlib.Path, help="password file path", required=True
     )
     parser.add_argument("-h", "--hostname", help="target hostname", required=True)
     parser.add_argument("--port", type=int, help="target port", default=22)
@@ -225,9 +225,8 @@ def get_proxies() -> collections.deque:
         return collections.deque(proxies)
 
     # requests failed to download the list of proxies, raise an exception
-    else:
-        logger.critical("An error occurred while retrieving a list of proxies")
-        proxies_request.raise_for_status()
+    logger.critical("An error occurred while retrieving a list of proxies")
+    proxies_request.raise_for_status()
 
 
 def main() -> int:
@@ -253,7 +252,7 @@ def main() -> int:
             assert args.timeout >= 0, "timeout must >= 0"
         except AssertionError as error:
             logger.error(error)
-            sys.exit(1)
+            return 1
 
         # initialize variables
         thread_pool = []
