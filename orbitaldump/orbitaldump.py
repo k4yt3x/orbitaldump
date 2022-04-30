@@ -273,21 +273,25 @@ def main() -> int:
             thread.start()
             thread_pool.append(thread)
 
+        # read usernames and passwords from file
+        with args.username.open("r") as username_file:
+            usernames = username_file.readlines()
+        with args.password.open("r") as password_file:
+            passwords = password_file.readlines()
+
         # add username and password combinations to jobs queue
         logger.info("Loading usernames and passwords into queue")
-        with args.username.open("r") as username_file:
-            with args.password.open("r") as password_file:
-                for username in username_file:
-                    for password in password_file:
-                        jobs.put(
-                            (
-                                args.hostname,
-                                username.strip(),
-                                password.strip(),
-                                args.port,
-                                args.timeout,
-                            )
-                        )
+        for username in usernames:
+            for password in passwords:
+                jobs.put(
+                    (
+                        args.hostname,
+                        username.strip(),
+                        password.strip(),
+                        args.port,
+                        args.timeout,
+                    )
+                )
 
         try:
             while not jobs.empty():
