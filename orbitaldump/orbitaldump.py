@@ -189,7 +189,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "-p", "--password", type=pathlib.Path, help="password file path", required=True
     )
-    parser.add_argument("-h", "--hostname", help="target hostname", required=True)
+    parser.add_argument("-h", "--hostname",type=pathlib.Path, help="target hostname", required=True)
     parser.add_argument("--port", type=int, help="target port", default=22)
     parser.add_argument("--timeout", type=int, help="SSH timeout", default=6)
     parser.add_argument(
@@ -248,6 +248,7 @@ def main() -> int:
             assert args.threads >= 1, "number of threads must >= 1"
             assert args.username.is_file(), "username file does not exist"
             assert args.password.is_file(), "password file does not exist"
+            assert args.hostname.is_file(), "hostname file does not exist"
             assert args.port >= 0, "the port number must >= 0"
             assert args.timeout >= 0, "timeout must >= 0"
         except AssertionError as error:
@@ -277,14 +278,16 @@ def main() -> int:
             usernames = username_file.readlines()
         with args.password.open("r") as password_file:
             passwords = password_file.readlines()
-
+        with args.hostname.open("r") as hostname_file:
+            hostnames = hostname_file.readlines()
         # add username and password combinations to jobs queue
         logger.info("Loading usernames and passwords into queue")
         for username in usernames:
             for password in passwords:
-                jobs.put(
+                for hostname in hostnames:
+                    jobs.put(
                     (
-                        args.hostname,
+                        hostname.strip(),
                         username.strip(),
                         password.strip(),
                         args.port,
