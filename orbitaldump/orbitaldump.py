@@ -189,7 +189,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "-p", "--password", type=pathlib.Path, help="password file path", required=True
     )
-    parser.add_argument("-h", "--hostname",type=pathlib.Path, help="target hostname", required=True)
+    parser.add_argument("-h", "--hostname",type=pathlib.Path, help="hostname file path", required=True)
     parser.add_argument("--port", type=int, help="target port", default=22)
     parser.add_argument("--timeout", type=int, help="SSH timeout", default=6)
     parser.add_argument(
